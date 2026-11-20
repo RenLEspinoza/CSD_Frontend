@@ -6,6 +6,7 @@ export async function renderDashboard(appContainer) {
 
   let currentPetId = null;
   let editingPetId = null;
+  let editingRecordId = null;
   let allPets = [];
 
   const speciesBackgrounds = {
@@ -75,7 +76,6 @@ export async function renderDashboard(appContainer) {
         </div>
 
         <form id="createPetForm" class="space-y-3">
-          <!-- Selector y Vista Previa de Foto -->
           <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
             <img id="photoPreview" src="https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&w=200&q=70" alt="Vista previa" class="w-16 h-16 rounded-xl object-cover border border-white shadow-sm shrink-0" />
             <div class="flex-1 min-w-0">
@@ -154,11 +154,11 @@ export async function renderDashboard(appContainer) {
       </div>
     </div>
 
-    <!-- Modal 2: Registro de Vacuna / Ficha Médica -->
+    <!-- Modal 2: Crear / Editar Registro Médico -->
     <div id="vaccineModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
       <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-          <h3 class="text-lg font-bold text-slate-800">Agregar Registro Médico 💉</h3>
+          <h3 id="vaccineModalTitle" class="text-lg font-bold text-slate-800">Agregar Registro Médico 💉</h3>
           <button id="closeVaccineModal" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
         </div>
 
@@ -201,6 +201,30 @@ export async function renderDashboard(appContainer) {
         </form>
       </div>
     </div>
+
+    <!-- Modal 3: Ver, Editar o Eliminar Historial Médico de un Paciente -->
+    <div id="historyModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 max-h-[88vh] flex flex-col">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+          <div>
+            <h3 id="historyModalTitle" class="text-lg font-bold text-slate-800">Historial Clínico</h3>
+            <p class="text-[11px] text-slate-400">Edita o elimina registros aplicados al paciente</p>
+          </div>
+          <button id="closeHistoryModal" class="text-slate-400 hover:text-slate-600 text-lg font-bold">✕</button>
+        </div>
+
+        <div id="historyListContainer" class="flex-1 overflow-y-auto space-y-2.5 pr-1"></div>
+
+        <div class="pt-4 mt-4 border-t border-slate-100 flex justify-between gap-2">
+          <button id="addFromHistoryBtn" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow transition-colors">
+            + Nuevo Registro
+          </button>
+          <button id="doneHistoryBtn" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2.5 px-4 rounded-xl transition-colors">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
   `;
 
   // Referencias DOM
@@ -214,6 +238,14 @@ export async function renderDashboard(appContainer) {
   const photoPreview = document.getElementById("photoPreview");
   const petSpeciesSelect = document.getElementById("petSpecies");
   const vaccineModal = document.getElementById("vaccineModal");
+  const vaccineModalTitle = document.getElementById("vaccineModalTitle");
+  const saveVaccineBtn = document.getElementById("saveVaccineBtn");
+  const historyModal = document.getElementById("historyModal");
+  const historyModalTitle = document.getElementById("historyModalTitle");
+  const historyListContainer = document.getElementById("historyListContainer");
+  const closeHistoryModal = document.getElementById("closeHistoryModal");
+  const doneHistoryBtn = document.getElementById("doneHistoryBtn");
+  const addFromHistoryBtn = document.getElementById("addFromHistoryBtn");
   const openRegisterModal = document.getElementById("openRegisterModal");
   const closeModal = document.getElementById("closeModal");
   const closeVaccineModal = document.getElementById("closeVaccineModal");
@@ -239,7 +271,16 @@ export async function renderDashboard(appContainer) {
     return speciesBackgrounds[pet.species] || speciesBackgrounds.Otro;
   };
 
-  // Vista previa al seleccionar imagen
+  const formatDateShort = (dateStr) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("es-CL", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  };
+
   petPhotoInput.onchange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -254,7 +295,6 @@ export async function renderDashboard(appContainer) {
     }
   };
 
-  // Abrir modal en modo CREACIÓN
   openRegisterModal.onclick = () => {
     editingPetId = null;
     petModalTitle.textContent = "Registrar Paciente";
@@ -281,11 +321,150 @@ export async function renderDashboard(appContainer) {
   };
 
   const hideVaccineModal = () => {
+    editingRecordId = null;
     vaccineModal.classList.add("hidden");
     vaccineModal.classList.remove("flex");
   };
 
   closeVaccineModal.onclick = hideVaccineModal;
+
+  const hideHistoryModal = () => {
+    historyModal.classList.add("hidden");
+    historyModal.classList.remove("flex");
+  };
+
+  closeHistoryModal.onclick = hideHistoryModal;
+  doneHistoryBtn.onclick = hideHistoryModal;
+
+  addFromHistoryBtn.onclick = () => {
+    hideHistoryModal();
+    openCreateVaccineModal(currentPetId);
+  };
+
+  function openCreateVaccineModal(petId) {
+    currentPetId = petId;
+    editingRecordId = null;
+    vaccineModalTitle.textContent = "Agregar Registro Médico 💉";
+    saveVaccineBtn.textContent = "Guardar Registro Médico";
+    createVaccineForm.reset();
+    document.getElementById("vacDateApplied").value = todayStr;
+    vaccineError.classList.add("hidden");
+    vaccineModal.classList.remove("hidden");
+    vaccineModal.classList.add("flex");
+  }
+
+  function openPetHistoryModal(petId) {
+    currentPetId = petId;
+    const pet = allPets.find((p) => String(p.id) === String(petId));
+    if (!pet) return;
+
+    const records = pet.MedicalRecords || [];
+    historyModalTitle.textContent = `Historial de ${pet.name} (${records.length})`;
+
+    if (records.length === 0) {
+      historyListContainer.innerHTML = `
+        <div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+          <p class="text-xs font-bold text-slate-600">Sin registros médicos todavía</p>
+          <p class="text-[11px] text-slate-400 mt-1">Haz clic en "+ Nuevo Registro" para agregar el primero.</p>
+        </div>
+      `;
+    } else {
+      historyListContainer.innerHTML = records
+        .map(
+          (rec) => `
+          <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">${rec.type || "Vacuna"}</span>
+                <span class="text-[10px] text-slate-500 font-medium">${formatDateShort(rec.dateApplied)}</span>
+              </div>
+              <p class="text-xs font-bold text-slate-800 mt-1 truncate">${rec.title}</p>
+              ${rec.notes ? `<p class="text-[11px] text-slate-500 mt-0.5 line-clamp-2">${rec.notes}</p>` : ""}
+              ${rec.nextDueDate ? `<p class="text-[10px] font-semibold text-emerald-700 mt-1">Próxima: ${formatDateShort(rec.nextDueDate)}</p>` : ""}
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button 
+                data-record-id="${rec.id}"
+                class="edit-record-btn bg-white hover:bg-amber-500 hover:text-white text-slate-700 text-[11px] p-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+                title="Editar registro"
+              >
+                ✏️
+              </button>
+              <button 
+                data-record-id="${rec.id}"
+                data-record-title="${rec.title}"
+                class="delete-record-btn bg-white hover:bg-red-600 hover:text-white text-slate-700 text-[11px] p-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+                title="Eliminar registro"
+              >
+                🗑️
+              </button>
+            </div>
+          </div>
+        `,
+        )
+        .join("");
+
+      // Eventos editar registro médico
+      historyListContainer
+        .querySelectorAll(".edit-record-btn")
+        .forEach((btn) => {
+          btn.onclick = (e) => {
+            const recId = e.currentTarget.getAttribute("data-record-id");
+            const rec = records.find((r) => String(r.id) === String(recId));
+            if (!rec) return;
+
+            hideHistoryModal();
+            editingRecordId = rec.id;
+            vaccineModalTitle.textContent = "Editar Registro Médico";
+            saveVaccineBtn.textContent = "Actualizar Registro";
+
+            document.getElementById("vacType").value = rec.type || "Vacuna";
+            document.getElementById("vacTitle").value = rec.title || "";
+            document.getElementById("vacDateApplied").value = rec.dateApplied
+              ? rec.dateApplied.split("T")[0]
+              : "";
+            document.getElementById("vacNextDueDate").value = rec.nextDueDate
+              ? rec.nextDueDate.split("T")[0]
+              : "";
+            document.getElementById("vacNotes").value = rec.notes || "";
+
+            vaccineError.classList.add("hidden");
+            vaccineModal.classList.remove("hidden");
+            vaccineModal.classList.add("flex");
+          };
+        });
+
+      // Eventos eliminar registro médico
+      historyListContainer
+        .querySelectorAll(".delete-record-btn")
+        .forEach((btn) => {
+          btn.onclick = async (e) => {
+            const recId = e.currentTarget.getAttribute("data-record-id");
+            const recTitle = e.currentTarget.getAttribute("data-record-title");
+
+            if (!confirm(`¿Eliminar el registro "${recTitle}"?`)) return;
+
+            try {
+              const res = await fetch(`${API_URL}/api/records/${recId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              const data = await res.json();
+              if (!res.ok)
+                throw new Error(data.message || "Error al eliminar registro");
+
+              await loadPets();
+              openPetHistoryModal(currentPetId);
+            } catch (err) {
+              alert(err.message);
+            }
+          };
+        });
+    }
+
+    historyModal.classList.remove("hidden");
+    historyModal.classList.add("flex");
+  }
 
   logoutBtn.onclick = () => {
     localStorage.removeItem("vetToken");
@@ -293,7 +472,6 @@ export async function renderDashboard(appContainer) {
     window.location.href = "/?view=login";
   };
 
-  // Renderizado de Cards estilo Glassmorphism
   function renderPetCards(petsList) {
     petsCounter.textContent = `Mostrando ${petsList.length} de ${allPets.length} pacientes`;
 
@@ -311,6 +489,7 @@ export async function renderDashboard(appContainer) {
     petsContainer.innerHTML = petsList
       .map((pet) => {
         const bgImage = resolvePetPhoto(pet);
+        const recordsCount = (pet.MedicalRecords || []).length;
         const speciesIcon =
           pet.species === "Gato"
             ? "🐱"
@@ -321,15 +500,13 @@ export async function renderDashboard(appContainer) {
                 : "🐶";
 
         return `
-        <div class="group relative overflow-hidden rounded-2xl border border-white/60 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between min-h-[220px]">
+        <div class="group relative overflow-hidden rounded-2xl border border-white/60 shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between min-h-[235px]">
           
-          <!-- Imagen de fondo (real o especie por defecto) -->
           <div 
             class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" 
             style="background-image: url('${bgImage}');"
           ></div>
 
-          <!-- Capa efecto cristal (Glassmorphism) -->
           <div class="relative z-10 flex-1 flex flex-col justify-between p-4 bg-white/70 backdrop-blur-[2px] group-hover:bg-white/60 transition-colors">
             <div>
               <div class="flex items-center justify-between gap-2">
@@ -387,32 +564,38 @@ export async function renderDashboard(appContainer) {
               </div>
             </div>
             
-            <button 
-              data-pet-id="${pet.id}" 
-              data-pet-name="${pet.name}"
-              class="add-vaccine-btn mt-4 w-full bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-bold py-2.5 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1.5 backdrop-blur-sm"
-            >
-              <span>💉 Registrar Vacuna / Control</span>
-            </button>
+            <div class="mt-4 grid grid-cols-2 gap-1.5">
+              <button 
+                data-pet-id="${pet.id}" 
+                class="view-history-btn bg-white/90 hover:bg-white text-slate-800 text-[11px] font-bold py-2 px-2 rounded-xl transition-colors shadow-sm border border-slate-200/80 flex items-center justify-center gap-1"
+              >
+                <span>📋 Historial (${recordsCount})</span>
+              </button>
+              <button 
+                data-pet-id="${pet.id}" 
+                class="add-vaccine-btn bg-slate-900/90 hover:bg-slate-900 text-white text-[11px] font-bold py-2 px-2 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-1"
+              >
+                <span>💉 + Vacuna</span>
+              </button>
+            </div>
           </div>
         </div>
       `;
       })
       .join("");
 
-    // Eventos: Abrir modal de vacunas
-    document.querySelectorAll(".add-vaccine-btn").forEach((btn) => {
+    document.querySelectorAll(".view-history-btn").forEach((btn) => {
       btn.onclick = (e) => {
-        currentPetId = e.currentTarget.getAttribute("data-pet-id");
-        createVaccineForm.reset();
-        document.getElementById("vacDateApplied").value = todayStr;
-        vaccineError.classList.add("hidden");
-        vaccineModal.classList.remove("hidden");
-        vaccineModal.classList.add("flex");
+        openPetHistoryModal(e.currentTarget.getAttribute("data-pet-id"));
       };
     });
 
-    // Eventos: Abrir modal en modo EDICIÓN
+    document.querySelectorAll(".add-vaccine-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        openCreateVaccineModal(e.currentTarget.getAttribute("data-pet-id"));
+      };
+    });
+
     document.querySelectorAll(".edit-pet-btn").forEach((btn) => {
       btn.onclick = (e) => {
         const id = e.currentTarget.getAttribute("data-pet-id");
@@ -443,7 +626,6 @@ export async function renderDashboard(appContainer) {
       };
     });
 
-    // Eventos: Eliminar mascota
     document.querySelectorAll(".delete-pet-btn").forEach((btn) => {
       btn.onclick = async (e) => {
         const id = e.currentTarget.getAttribute("data-pet-id");
@@ -474,7 +656,6 @@ export async function renderDashboard(appContainer) {
       };
     });
 
-    // Eventos: Descargar QR directo desde la tarjeta
     document.querySelectorAll(".download-card-qr").forEach((btn) => {
       btn.onclick = async (e) => {
         const button = e.currentTarget;
@@ -506,7 +687,6 @@ export async function renderDashboard(appContainer) {
     });
   }
 
-  // Filtro en tiempo real
   searchInput.addEventListener("input", (e) => {
     const term = e.target.value.toLowerCase().trim();
     const filtered = allPets.filter(
@@ -518,7 +698,6 @@ export async function renderDashboard(appContainer) {
     renderPetCards(filtered);
   });
 
-  // Cargar mascotas
   async function loadPets() {
     try {
       const res = await fetch(`${API_URL}/api/pets/my-pets`, {
@@ -541,7 +720,6 @@ export async function renderDashboard(appContainer) {
     }
   }
 
-  // Submit Mascota con FormData (Crear o Editar según editingPetId)
   createPetForm.onsubmit = async (e) => {
     e.preventDefault();
     formError.classList.add("hidden");
@@ -577,9 +755,7 @@ export async function renderDashboard(appContainer) {
     try {
       const res = await fetch(url, {
         method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -604,7 +780,7 @@ export async function renderDashboard(appContainer) {
     }
   };
 
-  // Submit Vacuna / Procedimiento
+  // Submit Vacuna / Procedimiento (Crear o Editar según editingRecordId)
   createVaccineForm.onsubmit = async (e) => {
     e.preventDefault();
     vaccineError.classList.add("hidden");
@@ -618,9 +794,15 @@ export async function renderDashboard(appContainer) {
       notes: document.getElementById("vacNotes").value.trim() || null,
     };
 
+    const isEditingRec = Boolean(editingRecordId);
+    const url = isEditingRec
+      ? `${API_URL}/api/records/${editingRecordId}`
+      : `${API_URL}/api/records`;
+    const method = isEditingRec ? "PUT" : "POST";
+
     try {
-      const res = await fetch(`${API_URL}/api/records`, {
-        method: "POST",
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -630,10 +812,13 @@ export async function renderDashboard(appContainer) {
 
       const data = await res.json();
       if (!res.ok)
-        throw new Error(data.message || "Error al registrar la vacuna");
+        throw new Error(data.message || "Error al guardar el registro médico");
 
       hideVaccineModal();
-      loadPets();
+      await loadPets();
+      if (isEditingRec) {
+        openPetHistoryModal(currentPetId);
+      }
     } catch (err) {
       vaccineError.textContent = err.message;
       vaccineError.classList.remove("hidden");
