@@ -254,11 +254,12 @@ export async function renderPublicCard(appContainer, publicId) {
           </div>
 
           <!-- Footer -->
-          <div class="text-center py-2 space-y-1">
-            <a href="/?view=login" class="inline-block text-[10px] text-slate-400 hover:text-emerald-600 transition-colors">
-              Portal Veterinario • Carnet Salud Digital
-            </a>
-          </div>
+<div class="text-center py-2 space-y-1">
+  ${pet.User?.vetName ? `<p class="text-[11px] text-slate-500 font-medium">Emitido por <span class="font-bold text-slate-700">${pet.User.vetName}</span></p>` : ""}
+  <a href="/?view=login" class="inline-block text-[10px] text-slate-400 hover:text-emerald-600 transition-colors">
+    Portal Veterinario • Carnet Salud Digital
+  </a>
+</div>
 
         </div>
       </div>
