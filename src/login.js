@@ -43,6 +43,9 @@ export function renderLogin(appContainer) {
           >
             <span>Iniciar Sesión</span>
           </button>
+          <button type="button" id="btn-fill-demo" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 rounded-xl text-xs transition-colors border border-slate-200">
+  🧪 Usar cuenta de demostración
+</button>
         </form>
 
         <div class="mt-6 text-center border-t border-slate-100 pt-4">
@@ -65,6 +68,20 @@ export function renderLogin(appContainer) {
 
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value.trim();
+
+    const fillDemoCredentials = () => {
+      emailInput.value = "demo@carnetsalud.cl";
+      passwordInput.value = "DemoVet2026";
+    };
+
+    document
+      .querySelector("#btn-fill-demo")
+      ?.addEventListener("click", fillDemoCredentials);
+
+    // Si viene desde ?view=login&demo=1, rellena automáticamente
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      fillDemoCredentials();
+    }
 
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
