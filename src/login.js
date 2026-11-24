@@ -43,9 +43,14 @@ export function renderLogin(appContainer) {
           >
             <span>Iniciar Sesión</span>
           </button>
-          <button type="button" id="btn-fill-demo" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 rounded-xl text-xs transition-colors border border-slate-200">
-  🧪 Usar cuenta de demostración
-</button>
+
+          <button 
+            type="button" 
+            id="btn-fill-demo" 
+            class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-xs transition-colors border border-slate-200"
+          >
+            🧪 Usar cuenta de demostración
+          </button>
         </form>
 
         <div class="mt-6 text-center border-t border-slate-100 pt-4">
@@ -56,32 +61,47 @@ export function renderLogin(appContainer) {
     </div>
   `;
 
-  const loginForm = document.getElementById("loginForm");
-  const errorMessage = document.getElementById("errorMessage");
-  const submitBtn = document.getElementById("submitBtn");
+  const loginForm = appContainer.querySelector("#loginForm");
+  const emailInput = appContainer.querySelector("#email");
+  const passwordInput = appContainer.querySelector("#password");
+  const errorMessage = appContainer.querySelector("#errorMessage");
+  const submitBtn = appContainer.querySelector("#submitBtn");
 
-  loginForm.addEventListener("submit", async (e) => {
+  const fillDemoCredentials = () => {
+    const currentEmail = appContainer.querySelector("#email");
+    const currentPassword = appContainer.querySelector("#password");
+    const currentError = appContainer.querySelector("#errorMessage");
+    if (!currentEmail || !currentPassword) return;
+
+    currentEmail.value = "demo@carnetsalud.cl";
+    currentPassword.value = "DemoVet2026";
+    currentError?.classList.add("hidden");
+    currentEmail.dispatchEvent(new Event("input", { bubbles: true }));
+    currentPassword.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
+  // Delegación de eventos sobre el contenedor para evitar listeners perdidos al re-renderizar
+  appContainer.addEventListener("click", (e) => {
+    const demoBtn = e.target.closest("#btn-fill-demo");
+    if (!demoBtn) return;
+
+    e.preventDefault();
+    fillDemoCredentials();
+  });
+
+  // Si viene desde ?view=login&demo=1, rellena automáticamente al cargar
+  if (new URLSearchParams(window.location.search).get("demo") === "1") {
+    fillDemoCredentials();
+  }
+
+  loginForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     errorMessage.classList.add("hidden");
     submitBtn.disabled = true;
     submitBtn.innerHTML = `<span>Cargando...</span>`;
 
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value.trim();
-
-    const fillDemoCredentials = () => {
-      emailInput.value = "demo@carnetsalud.cl";
-      passwordInput.value = "DemoVet2026";
-    };
-
-    document
-      .querySelector("#btn-fill-demo")
-      ?.addEventListener("click", fillDemoCredentials);
-
-    // Si viene desde ?view=login&demo=1, rellena automáticamente
-    if (new URLSearchParams(window.location.search).get("demo") === "1") {
-      fillDemoCredentials();
-    }
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
 
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
@@ -96,11 +116,9 @@ export function renderLogin(appContainer) {
         throw new Error(data.message || "Error al iniciar sesión");
       }
 
-      // Guardar el token y los datos de la veterinaria en localStorage
       localStorage.setItem("vetToken", data.token);
       localStorage.setItem("vetUser", JSON.stringify(data.user));
 
-      // Redirigir al dashboard
       window.location.href = "/?view=dashboard";
     } catch (err) {
       errorMessage.textContent = err.message;
