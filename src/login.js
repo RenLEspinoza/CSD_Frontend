@@ -73,7 +73,7 @@ export function renderLogin(appContainer) {
     const currentError = appContainer.querySelector("#errorMessage");
     if (!currentEmail || !currentPassword) return;
 
-    currentEmail.value = "demo@carnetsalud.cl";
+    currentEmail.value = "demo@carnetvet.cl";
     currentPassword.value = "DemoVet2026";
     currentError?.classList.add("hidden");
     currentEmail.dispatchEvent(new Event("input", { bubbles: true }));
