@@ -1,13 +1,16 @@
 // src/landing.js
 
 //
-const DEMO_PET_PUBLIC_ID = "d8a874b5"; // Reemplaza esto con un publicId real de una ficha de mascota para la demo.
+const DEMO_PET_PUBLIC_ID = "d8a874b5"; // publicId real de la mascota de ejemplo
 
 export function renderLanding(container) {
-  const demoCardUrl =
-    DEMO_PET_PUBLIC_ID !== "d8a874b5"
-      ? `/?p=${DEMO_PET_PUBLIC_ID}`
-      : "/?view=login";
+  const hasDemoPet =
+    Boolean(DEMO_PET_PUBLIC_ID) &&
+    DEMO_PET_PUBLIC_ID !== "TU_PUBLIC_ID_DE_EJEMPLO";
+
+  const demoCardUrl = hasDemoPet
+    ? `/?p=${encodeURIComponent(DEMO_PET_PUBLIC_ID)}`
+    : "/?view=login";
 
   container.innerHTML = `
     <div class="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
